@@ -5,6 +5,7 @@ import argparse
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import torch
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
 
 from feature_extractors import (
     GLCMFeatureExtractor, 
@@ -159,7 +160,7 @@ def fuse_features(train_features_all, test_features_all, fusion_method='concat')
     print(f"融合后特征形状: {fused_train_features.shape}")
     return fused_train_features, fused_test_features
 
-def train_and_evaluate(train_features, train_labels, test_features, test_labels, classifier_type, output_dir):
+def train_and_evaluate(train_features, train_labels, test_features, test_labels, classifier_type, output_dir, use_cv=True, cv_folds=5):
     """
     训练分类器并评估
     
@@ -170,6 +171,8 @@ def train_and_evaluate(train_features, train_labels, test_features, test_labels,
     test_labels: 测试集标签
     classifier_type: 分类器类型
     output_dir: 输出目录
+    use_cv: 是否使用交叉验证优化参数
+    cv_folds: 交叉验证折数
     
     返回:
     results: 评估结果
@@ -178,16 +181,45 @@ def train_and_evaluate(train_features, train_labels, test_features, test_labels,
     
     # 创建分类器
     if classifier_type == 'svm':
-        classifier = SVMClassifier(kernel='rbf', C=10.0)
+        if use_cv:
+            print("使用交叉验证优化SVM参数...")
+            classifier = SVMClassifier()
+            best_params = classifier.tune_hyperparameters(train_features, train_labels, cv=cv_folds)
+            print(f"最佳参数: {best_params}")
+        else:
+            classifier = SVMClassifier(kernel='rbf', C=10.0)
     elif classifier_type == 'rf':
-        classifier = RandomForestClassifier_(n_estimators=200, max_depth=None)
+        if use_cv:
+            print("使用交叉验证优化随机森林参数...")
+            classifier = RandomForestClassifier_()
+            best_params = classifier.tune_hyperparameters(train_features, train_labels, cv=cv_folds)
+            print(f"最佳参数: {best_params}")
+        else:
+            classifier = RandomForestClassifier_(n_estimators=200, max_depth=None)
     elif classifier_type == 'knn':
-        classifier = KNNClassifier(n_neighbors=5)
+        if use_cv:
+            print("使用交叉验证优化KNN参数...")
+            classifier = KNNClassifier()
+            best_params = classifier.tune_hyperparameters(train_features, train_labels, cv=cv_folds)
+            print(f"最佳参数: {best_params}")
+        else:
+            classifier = KNNClassifier(n_neighbors=5)
     elif classifier_type == 'ensemble':
         # 创建多个基分类器
-        svm = SVMClassifier(kernel='rbf', C=10.0)
-        rf = RandomForestClassifier_(n_estimators=200, max_depth=None)
-        knn = KNNClassifier(n_neighbors=5)
+        if use_cv:
+            print("使用交叉验证优化集成分类器参数...")
+            svm = SVMClassifier()
+            svm.tune_hyperparameters(train_features, train_labels, cv=cv_folds)
+            
+            rf = RandomForestClassifier_()
+            rf.tune_hyperparameters(train_features, train_labels, cv=cv_folds)
+            
+            knn = KNNClassifier()
+            knn.tune_hyperparameters(train_features, train_labels, cv=cv_folds)
+        else:
+            svm = SVMClassifier(kernel='rbf', C=10.0)
+            rf = RandomForestClassifier_(n_estimators=200, max_depth=None)
+            knn = KNNClassifier(n_neighbors=5)
         
         # 创建集成分类器
         classifier = EnsembleClassifier([svm, rf, knn], weights=[1.5, 1.0, 0.8])
@@ -242,6 +274,10 @@ def parse_args():
                         help='特征融合方法')
     parser.add_argument('--load_features', action='store_true', 
                         help='是否加载已保存的特征')
+    parser.add_argument('--use_cv', action='store_true',
+                        help='是否使用交叉验证优化参数')
+    parser.add_argument('--cv_folds', type=int, default=5,
+                        help='交叉验证折数')
     return parser.parse_args()
 
 def main():
@@ -277,7 +313,7 @@ def main():
     print(f"使用{args.classifier}分类器...")
     results = train_and_evaluate(
         train_features, train_labels, test_features, test_labels, 
-        args.classifier, args.output_dir)
+        args.classifier, args.output_dir, args.use_cv, args.cv_folds)
     
     print("实验完成！")
     print(f"平均准确率: {results['accuracy']:.4f}")

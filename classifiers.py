@@ -74,14 +74,14 @@ class SVMClassifier(BaseClassifier):
         """调整超参数"""
         # 定义参数网格
         param_grid = {
-            'C': [0.1, 1, 10, 100],
-            'gamma': ['scale', 'auto', 0.01, 0.1, 1],
+            'C': [0.1, 1, 10, 50, 100],
+            'gamma': ['scale', 'auto', 0.001, 0.01, 0.1, 1],
             'kernel': ['rbf', 'linear', 'poly']
         }
         
         # 使用网格搜索找到最佳参数
         X_scaled = self.scaler.fit_transform(X)
-        grid_search = GridSearchCV(SVC(probability=True), param_grid, cv=cv, n_jobs=-1)
+        grid_search = GridSearchCV(SVC(probability=True), param_grid, cv=cv, n_jobs=-1, verbose=1)
         grid_search.fit(X_scaled, y)
         
         # 更新模型
@@ -100,14 +100,15 @@ class RandomForestClassifier_(BaseClassifier):
         """调整超参数"""
         # 定义参数网格
         param_grid = {
-            'n_estimators': [50, 100, 200],
-            'max_depth': [None, 10, 20, 30],
-            'min_samples_split': [2, 5, 10]
+            'n_estimators': [50, 100, 200, 300],
+            'max_depth': [None, 10, 20, 30, 50],
+            'min_samples_split': [2, 5, 10],
+            'max_features': ['sqrt', 'log2', None]
         }
         
         # 使用网格搜索找到最佳参数
         X_scaled = self.scaler.fit_transform(X)
-        grid_search = GridSearchCV(RandomForestClassifier(random_state=42), param_grid, cv=cv, n_jobs=-1)
+        grid_search = GridSearchCV(RandomForestClassifier(random_state=42), param_grid, cv=cv, n_jobs=-1, verbose=1)
         grid_search.fit(X_scaled, y)
         
         # 更新模型
@@ -126,14 +127,14 @@ class KNNClassifier(BaseClassifier):
         """调整超参数"""
         # 定义参数网格
         param_grid = {
-            'n_neighbors': [3, 5, 7, 9, 11],
+            'n_neighbors': [3, 5, 7, 9, 11, 13, 15],
             'weights': ['uniform', 'distance'],
-            'metric': ['euclidean', 'manhattan', 'minkowski']
+            'metric': ['euclidean', 'manhattan', 'minkowski', 'chebyshev']
         }
         
         # 使用网格搜索找到最佳参数
         X_scaled = self.scaler.fit_transform(X)
-        grid_search = GridSearchCV(KNeighborsClassifier(), param_grid, cv=cv, n_jobs=-1)
+        grid_search = GridSearchCV(KNeighborsClassifier(), param_grid, cv=cv, n_jobs=-1, verbose=1)
         grid_search.fit(X_scaled, y)
         
         # 更新模型
